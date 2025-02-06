@@ -7,25 +7,45 @@ import {
   FlatList, 
   StyleSheet, 
   TouchableOpacity,
-  Picker,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { WineRecord } from '../models/WineRecord';
 import { loadRecords } from '../utils/Storage';
 
+// Определяем параметры навигации для стека поиска
+export type SearchStackParamList = {
+  Search: undefined;
+  RecordDetail: { recordId: string };
+};
+
+type NavigationProps = StackNavigationProp<SearchStackParamList, 'Search'>;
+
+// Расширяем тип WineRecord, добавляя обязательное свойство id
+interface WineRecordWithId extends WineRecord {
+  id: string;
+}
+
 const SearchScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProps>();
   const [searchCriteria, setSearchCriteria] = useState<Partial<WineRecord>>({});
   const [sortBy, setSortBy] = useState<'wineryName' | 'wineName' | 'harvestYear'>('wineryName');
-  const [allRecords, setAllRecords] = useState<WineRecord[]>([]);
-  const [filteredRecords, setFilteredRecords] = useState<WineRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<WineRecordWithId[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<WineRecordWithId[]>([]);
 
   useEffect(() => {
     const initializeData = async () => {
-      const records = await loadRecords();
-      setAllRecords(records);
-      setFilteredRecords(records);
+      try {
+        // Приводим полученные записи к типу WineRecordWithId
+        const records = await loadRecords() as WineRecordWithId[];
+        setAllRecords(records);
+        setFilteredRecords(records);
+      } catch (error) {
+        Alert.alert("Ошибка", "Не удалось загрузить записи");
+      }
     };
     initializeData();
   }, []);
@@ -34,20 +54,20 @@ const SearchScreen: React.FC = () => {
     const results = allRecords.filter(record => {
       return Object.entries(searchCriteria).every(([key, value]) => {
         if (!value) return true;
-        
         const recordValue = getNestedValue(record, key);
-        return String(recordValue).toLowerCase().includes(String(value).toLowerCase());
+        return recordValue && String(recordValue).toLowerCase().includes(String(value).toLowerCase());
       });
     }).sort((a, b) => {
-      if (sortBy === 'harvestYear') return b[sortBy] - a[sortBy];
+      if (sortBy === 'harvestYear') {
+        return Number(b[sortBy]) - Number(a[sortBy]);
+      }
       return String(a[sortBy]).localeCompare(String(b[sortBy]));
     });
-    
     setFilteredRecords(results);
   };
 
   const getNestedValue = (obj: any, path: string) => {
-    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    return path.split('.').reduce((acc, part) => acc && acc[part] !== undefined ? acc[part] : undefined, obj);
   };
 
   const updateCriteria = (field: string, value: string) => {
@@ -57,12 +77,28 @@ const SearchScreen: React.FC = () => {
     }));
   };
 
-  const navigateToDetail = (item: WineRecord) => {
-    navigation.navigate('RecordDetail', { record: item });
+  const navigateToDetail = (record: WineRecordWithId) => {
+    navigation.navigate('RecordDetail', { recordId: record.id });
+  };
+
+  const navigateToMainMenu = () => {
+    // Пытаемся обратиться к родительскому навигатору для перехода на "Home"
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('Home');
+    } else {
+      // Если родительского навигатора нет, пробуем напрямую
+      navigation.navigate('Home' as any);
+    }
   };
 
   return (
     <ScrollView style={styles.container}>
+      {/* Кнопка возврата к главному меню */}
+      <View style={styles.topButtons}>
+        <Button title="В главное меню" onPress={navigateToMainMenu} />
+      </View>
+
       {/* Секция критериев поиска */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Критерии поиска</Text>
@@ -86,9 +122,6 @@ const SearchScreen: React.FC = () => {
           onChangeText={t => updateCriteria('harvestYear', t)}
         />
 
-        {/* Аналогичные TextInput для остальных 25 полей */}
-        {/* Пример для нескольких полей: */}
-        
         <TextInput
           style={styles.input}
           placeholder="Винодел"
@@ -132,7 +165,7 @@ const SearchScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>Сортировка</Text>
         <Picker
           selectedValue={sortBy}
-          onValueChange={(itemValue) => setSortBy(itemValue)}>
+          onValueChange={(itemValue: 'wineryName' | 'wineName' | 'harvestYear') => setSortBy(itemValue)}>
           <Picker.Item label="По винодельне" value="wineryName" />
           <Picker.Item label="По названию вина" value="wineName" />
           <Picker.Item label="По году урожая" value="harvestYear" />
@@ -148,7 +181,7 @@ const SearchScreen: React.FC = () => {
         
         <FlatList
           data={filteredRecords}
-          keyExtractor={(item) => `${item.wineName}-${Date.now()}`}
+          keyExtractor={(item, index) => item.id || `${item.wineName}-${index}`}
           renderItem={({ item }) => (
             <TouchableOpacity 
               style={styles.resultItem}
@@ -170,58 +203,49 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+  },
+  topButtons: {
+    marginBottom: 16,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 16,
-    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 12,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   input: {
+    height: 40,
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    backgroundColor: 'white',
+    marginBottom: 8,
+    paddingHorizontal: 8,
   },
   resultsSection: {
     marginTop: 16,
   },
   resultsTitle: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   resultItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
     padding: 16,
-    marginBottom: 8,
-    elevation: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
   itemTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: 'bold',
   },
   itemSubtitle: {
     fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 4,
+    color: '#666',
   },
   itemDetails: {
     fontSize: 12,
-    color: '#95a5a6',
-    marginTop: 4,
+    color: '#999',
   },
 });
 
