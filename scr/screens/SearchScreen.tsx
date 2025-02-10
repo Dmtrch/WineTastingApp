@@ -191,12 +191,12 @@ const styles = StyleSheet.create({
   },
   topSection: {
     flex: 0.5,
-    padding: 16,
+    padding: 5,
     backgroundColor: '#f8f9fa',
   },
   bottomSection: {
     flex: 0.5,
-    padding: 16,
+    padding: 5,
     backgroundColor: '#fff',
   },
   buttonRow: {

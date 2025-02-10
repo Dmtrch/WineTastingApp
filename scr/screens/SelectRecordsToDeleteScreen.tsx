@@ -2,66 +2,90 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  Button, 
   FlatList, 
+  TouchableOpacity, 
+  Button, 
   StyleSheet, 
-  TouchableOpacity 
+  Alert 
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { WineRecord } from '../models/WineRecord';
 import { loadRecords, saveRecords } from '../utils/Storage';
+import { WineRecord } from '../models/WineRecord';
 
 const SelectRecordsToDeleteScreen: React.FC = () => {
-  const navigation = useNavigation();
   const [records, setRecords] = useState<WineRecord[]>([]);
-  const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchRecords = async () => {
-      const loadedRecords = await loadRecords();
-      setRecords(loadedRecords);
+      try {
+        const loadedRecords = await loadRecords();
+        if (loadedRecords) {
+          setRecords(loadedRecords);
+        } else {
+          Alert.alert("Ошибка", "Не удалось загрузить записи");
+        }
+      } catch (error) {
+        Alert.alert("Ошибка", "Произошла ошибка при загрузке записей");
+      }
     };
     fetchRecords();
   }, []);
 
+  // Функция переключения выбранного состояния для записи
   const toggleSelection = (id: string) => {
-    setSelectedRecords(prev => 
-      prev.includes(id) 
-        ? prev.filter(item => item !== id) 
-        : [...prev, id]
-    );
+    setSelectedIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
+  // Функция удаления выбранных записей
   const handleDeleteSelected = async () => {
-    const updatedRecords = records.filter(record => !selectedRecords.includes(record.wineName));
-    await saveRecords(updatedRecords);
-    Alert.alert('Успех', 'Выбранные записи удалены');
-    navigation.goBack();
+    if (selectedIds.length === 0) {
+      Alert.alert("Информация", "Выберите записи для удаления");
+      return;
+    }
+    // Фильтруем записи, исключая выбранные
+    const newRecords = records.filter(record => !selectedIds.includes(record.id));
+    try {
+      await saveRecords(newRecords);
+      // После успешного удаления загружаем обновлённый список записей
+      const updatedRecords = await loadRecords();
+      setRecords(updatedRecords || []);
+      setSelectedIds([]);
+      Alert.alert("Успех", "Выбранные записи удалены");
+    } catch (error) {
+      Alert.alert("Ошибка", "Не удалось удалить выбранные записи");
+    }
   };
+
+  const renderItem = ({ item }: { item: WineRecord }) => (
+    <TouchableOpacity 
+      style={[
+        styles.item, 
+        selectedIds.includes(item.id) && styles.selectedItem
+      ]}
+      onPress={() => toggleSelection(item.id)}
+    >
+      <Text style={styles.itemText}>{item.wineName} ({item.wineryName})</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>Выбор записей для удаления</Text>
       <FlatList
         data={records}
-        keyExtractor={item => item.wineName}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.item,
-              selectedRecords.includes(item.wineName) && styles.selectedItem
-            ]}
-            onPress={() => toggleSelection(item.wineName)}>
-            <Text style={styles.itemText}>{item.wineName}</Text>
-            <Text style={styles.itemSubtext}>{item.wineryName}</Text>
-          </TouchableOpacity>
-        )}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
       />
-
-      <Button
-        title={`Удалить выбранные (${selectedRecords.length})`}
-        onPress={handleDeleteSelected}
-        disabled={selectedRecords.length === 0}
-        color="#e74c3c"
+      <Button 
+        title="Удалить выбранные" 
+        onPress={handleDeleteSelected} 
+        color="#e74c3c" 
       />
     </View>
   );
@@ -71,25 +95,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   item: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 4,
     marginBottom: 8,
-    elevation: 1,
   },
   selectedItem: {
-    backgroundColor: '#f8d7da',
+    backgroundColor: '#fdd',
+    borderColor: '#e74c3c',
   },
   itemText: {
     fontSize: 16,
-    color: '#2c3e50',
-  },
-  itemSubtext: {
-    fontSize: 14,
-    color: '#7f8c8d',
   },
 });
 

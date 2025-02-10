@@ -439,14 +439,14 @@ const TastingScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
+    padding: 5,
     backgroundColor: '#f8f9fa',
   },
   sectionHeader: {
     fontSize: 20,
     fontWeight: '600',
     color: '#2c3e50',
-    marginVertical: 20,
+    marginVertical: 5,
     borderBottomWidth: 2,
     borderBottomColor: '#3498db',
     paddingBottom: 5,
