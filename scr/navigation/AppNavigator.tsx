@@ -18,12 +18,36 @@ export type RootStackParamList = {
   SelectRecordsToDelete: undefined;
 };
 
-const RootStack = createStackNavigator<RootStackParamList>();
+// Типы для стека поиска
+export type SearchStackParamList = {
+  Search: undefined;
+  RecordDetail: { recordId: string };
+};
 
-// Подчинённые навигаторы
+const RootStack = createStackNavigator<RootStackParamList>();
+const SearchStack = createStackNavigator<SearchStackParamList>();
+
+// Вложённый навигатор для поиска
+const SearchNavigator = () => {
+  return (
+    <SearchStack.Navigator initialRouteName="Search">
+      <SearchStack.Screen 
+        name="Search" 
+        component={SearchScreen} 
+        options={{ headerShown: false }}
+      />
+      <SearchStack.Screen 
+        name="RecordDetail" 
+        component={RecordDetailScreen} 
+      />
+    </SearchStack.Navigator>
+  );
+};
+
+// Основной навигатор приложения
 const AppNavigator = () => {
   return (
-    <RootStack.Navigator initialRouteName="Home" id={undefined}>
+    <RootStack.Navigator initialRouteName="Home">
       <RootStack.Screen 
         name="Home" 
         component={HomeScreen} 
@@ -31,7 +55,7 @@ const AppNavigator = () => {
       />
       <RootStack.Screen 
         name="SearchStack" 
-        component={SearchScreen} 
+        component={SearchNavigator} 
         options={{ headerShown: false }}
       />
       <RootStack.Screen 

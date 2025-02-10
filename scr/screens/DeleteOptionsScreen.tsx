@@ -9,21 +9,28 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import DeleteOptionsStackParamList from "../navigation/AppNavigator"; // Проверьте корректность пути
+import { DeleteOptionsStackParamList } from "../navigation/AppNavigator"; // Проверьте корректность пути
 import { saveRecords } from "../utils/Storage";
 
-type NavigationProp = StackNavigationProp<typeof DeleteOptionsStackParamList, "DeleteOptions">;
+type NavigationProp = StackNavigationProp<DeleteOptionsStackParamList, "DeleteOptions">;
 
 const DeleteOptionsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Функция для возврата на главное меню
+  const navigateToMainMenu = () => {
+    // Переходим напрямую на маршрут "Home"
+    navigation.navigate("Home" as any);
+  };
 
   const handleDeleteAll = async () => {
     setIsDeleting(true);
     try {
       await saveRecords([]);
       Alert.alert("Успех", "Все записи успешно удалены");
-      navigation.goBack();
+      // После успешного удаления переходим на главное меню
+      navigateToMainMenu();
     } catch (error) {
       Alert.alert("Ошибка", "Не удалось удалить записи");
     } finally {
@@ -48,6 +55,7 @@ const DeleteOptionsScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Заголовок окна */}
       <Text style={styles.title}>Удаление записей</Text>
 
       <View style={styles.section}>
@@ -74,6 +82,11 @@ const DeleteOptionsScreen: React.FC = () => {
           color="#f39c12"
         />
       </View>
+
+      {/* Кнопка возврата на главное меню расположена в нижней части экрана */}
+      <View style={styles.bottomButton}>
+        <Button title="В главное меню" onPress={navigateToMainMenu} />
+      </View>
     </ScrollView>
   );
 };
@@ -88,7 +101,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#2c3e50",
+    marginTop: 50,       // Отступ сверху для размещения ниже "челки"
     marginBottom: 20,
+    textAlign: "center", // Центрирование текста по горизонтали
   },
   section: {
     backgroundColor: "white",
@@ -107,6 +122,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#7f8c8d",
     marginBottom: 16,
+  },
+  bottomButton: {
+    marginTop: 20,
+    alignItems: "center",
   },
 });
 
